@@ -1,0 +1,6 @@
+{
+  "name": "Resume and Portfolio Layout Designer",
+  "description": "A professional layout designer for crafting high-fidelity resumes and portfolios with interactive customization, AI bullet re-writing, and pixel-perfect print optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
