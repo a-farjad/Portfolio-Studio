@@ -1,11 +1,14 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useRef, useCallback } from "react";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import {
-  Sparkles, Loader2, AlertTriangle, CheckCircle, FileText,
-  Target, BarChart2, Download, RefreshCw, ChevronDown, X
+  Sparkles, AlertTriangle, Upload,
+  Download, RefreshCw, ChevronDown
 } from "lucide-react";
 
+GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@6.0.227/build/pdf.worker.min.mjs`;
+
 interface AtsAuditorProps {
-  resumeText: string;
+  resumeText?: string;
 }
 
 /* ── Data types ──────────────────────────────────── */
@@ -568,33 +571,64 @@ function generateRewrite(
   };
 }
 
+/* ── File reading helpers ────────────────────────── */
+
+async function extractTextFromPDF(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const pdf = await getDocument({ data: buffer }).promise;
+  const texts: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map((item: any) => item.str).join(" ");
+    if (pageText.trim()) texts.push(pageText);
+  }
+  return texts.join("\n").replace(/\s+/g, " ").trim();
+}
+
+async function readFileContent(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".txt")) return await file.text();
+  if (name.endsWith(".pdf")) return await extractTextFromPDF(file);
+  throw new Error("Unsupported file. Use .txt or .pdf.");
+}
+
 /* ── React component ─────────────────────────────── */
 
-export default function AtsAuditor({ resumeText }: AtsAuditorProps) {
+export default function AtsAuditor({ resumeText: propText }: AtsAuditorProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<AuditResults | null>(null);
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({
     skills: true, keywords: true, anzsco: false,
     hardsoft: false, verbs: false, gaps: false,
   });
+  const [inputText, setInputText] = useState(propText || "");
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const togglePanel = (id: string) =>
     setOpenPanels((p) => ({ ...p, [id]: !p[id] }));
 
+  const textToAnalyze = inputText || propText || "";
+
   const runAudit = () => {
-    if (resumeText.length < 100) return;
+    const text = inputText || propText || "";
+    if (text.length < 100) return;
     setIsRunning(true);
     setResults(null);
 
     setTimeout(() => {
-      const skills = extractSkills(resumeText);
+      const skills = extractSkills(text);
       const foundNames = skills.categories.flatMap((c) => c.skills);
-      const keywords = auditKeywords(resumeText);
+      const keywords = auditKeywords(text);
       const anzsco = mapAnzsco(foundNames);
       const hardSoft = classifyHardSoft(foundNames);
-      const verbs = auditVerbs(resumeText);
-      const gaps = analyzeGaps(resumeText, foundNames);
-      const rewrite = generateRewrite(resumeText, foundNames, gaps.gaps, keywords.rewrites);
+      const verbs = auditVerbs(text);
+      const gaps = analyzeGaps(text, foundNames);
+      const rewrite = generateRewrite(text, foundNames, gaps.gaps, keywords.rewrites);
 
       setResults({ skills, keywords, anzsco, hardSoft, verbs, gaps, rewrite });
       setIsRunning(false);
@@ -679,21 +713,93 @@ export default function AtsAuditor({ resumeText }: AtsAuditorProps) {
 
   return (
     <div className="space-y-4">
+      {/* ── Input area ── */}
+      {!results && (
+        <div className="space-y-3">
+          <div
+            ref={dropRef}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); if (dropRef.current && !dropRef.current.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+            onDrop={async (e) => {
+              e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (!file) return;
+              setIsParsing(true); setParseError("");
+              try {
+                const text = await readFileContent(file);
+                if (text.length < 50) { setParseError("Could not read enough text from the file."); return; }
+                setInputText(text);
+              } catch (err: any) { setParseError(err.message || "Failed to read file."); }
+              finally { setIsParsing(false); }
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
+              isDragging ? "border-sky-500 bg-sky-50 dark:bg-sky-950/30" : "border-slate-300 dark:border-slate-700 hover:border-sky-400 bg-slate-50/30 dark:bg-slate-900/20"
+            }`}
+          >
+            <input ref={fileInputRef} type="file" accept=".txt,.pdf" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setIsParsing(true); setParseError("");
+              try {
+                const text = await readFileContent(file);
+                if (text.length < 50) { setParseError("Could not read enough text from the file."); return; }
+                setInputText(text);
+              } catch (err: any) { setParseError(err.message || "Failed to read file."); }
+              finally { setIsParsing(false); e.target.value = ""; }
+            }} />
+            {isParsing ? (
+              <div className="flex items-center justify-center gap-2 text-slate-500 text-[11px]">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Parsing resume file...
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <Upload className={`w-5 h-5 ${isDragging ? "text-sky-500" : "text-slate-400"}`} />
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {isDragging ? "Drop resume file here" : "Click or drop a .txt / .pdf resume"}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {parseError && (
+            <div className="flex items-center gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px]">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>{parseError}</span>
+            </div>
+          )}
+
+          <div className="relative flex items-center gap-2">
+            <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+            <span className="text-[9px] text-slate-400 font-medium uppercase">or paste text</span>
+            <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+          </div>
+
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Paste your full resume text here — including summary, experience, skills, and certifications..."
+            rows={8}
+            className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-[11px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 font-mono leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-sky-500/50"
+          />
+
+          <p className="text-[10px] text-slate-400 text-center">
+            Analyses your resume across 7 lenses using client-side rules — no API key needed, 100% free.
+          </p>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={runAudit}
-        disabled={resumeText.length < 100}
+        disabled={isRunning || textToAnalyze.length < 100}
         className="w-full py-2.5 bg-gradient-to-r from-sky-600 to-violet-600 hover:from-sky-500 hover:to-violet-500 disabled:from-slate-300 disabled:to-slate-300 dark:disabled:from-slate-800 dark:disabled:to-slate-800 text-white disabled:text-slate-400 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
       >
         <Sparkles className="w-4 h-4" />
-        {resumeText.length < 100 ? "Add more resume content first" : "Run Free ATS Audit"}
+        {isRunning ? "Analysing..." : textToAnalyze.length < 100 ? "Add at least 100 characters" : results ? "Run Audit Again" : "Run Free ATS Audit"}
       </button>
-
-      {!results && (
-        <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-          Analyses your resume across 7 lenses using client-side rules — no API key needed, 100% free.
-        </p>
-      )}
 
       {results && (
         <>
