@@ -9,10 +9,11 @@ import { DEFAULT_RESUME_DATA, importFromJSONResume, exportToJSONResume } from ".
 import SidebarControls from "./components/SidebarControls";
 import ResumePreview from "./components/ResumePreview";
 import AIAssistant from "./components/AIAssistant";
+import AtsAuditor from "./components/AtsAuditor";
 import ActionVerbPanel from "./components/ActionVerbPanel";
 import {
-  FileText,   Sparkles, Monitor, Smartphone, Printer, Share2, Clipboard, Download, RefreshCw, Layers,
-  History, Settings, Eye, CheckCircle2, RotateCw, Moon, Sun, Info, Menu, X, ArrowLeftRight
+  Printer, Share2, RefreshCw,
+  Settings, Eye, Moon, Sun, ArrowLeftRight
 } from "lucide-react";
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(38); // default to 38%
 
   // Sidebar Sub-tabs [Edit, AI, Verbs]
-  const [controlsTab, setControlsTab] = useState<"content" | "layout" | "ai" | "verbs">("content");
+  const [controlsTab, setControlsTab] = useState<"content" | "layout" | "ai" | "ats" | "verbs">("content");
 
   // Local storage auto save indication
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
@@ -446,6 +447,7 @@ export default function App() {
               { id: "content", name: "Content" },
               { id: "layout", name: "Layout" },
               { id: "ai", name: "AI Optimizer" },
+              { id: "ats", name: "ATS Audit" },
               { id: "verbs", name: "Active Verbs" }
             ].map((tab) => (
               <button
@@ -493,6 +495,11 @@ export default function App() {
                     onUpdateMatchedKeywords={setAtsMatchedKeywords}
                   />
                 </div>
+              </div>
+            )}
+            {controlsTab === "ats" && (
+              <div className="p-4">
+                <AtsAuditor resumeText={getFlattenedResumeText()} />
               </div>
             )}
             {controlsTab === "verbs" && (

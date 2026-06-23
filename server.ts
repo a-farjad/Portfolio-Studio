@@ -274,6 +274,120 @@ Return your assessment ONLY as a JSON object matching this exact structure:
   }
 });
 
+// 5. ATS Full Audit (7 lenses, sequential, combined response)
+app.post("/api/ats/audit", async (req, res) => {
+  const { resumeText } = req.body;
+  if (!resumeText || resumeText.length < 100) {
+    return res.status(400).json({ error: "Resume text must be at least 100 characters" });
+  }
+
+  if (!ai) {
+    return res.status(503).json({ error: "Gemini API key not configured. Set GEMINI_API_KEY in .env" });
+  }
+
+  const step = (label: string) => console.log(`[ATS] ${label}`);
+
+  async function callGemini(system: string, user: string, maxTokens = 1200) {
+    const prompt = `${system}\n\nResume:\n"""\n${resumeText}\n"""\n\n${user}`;
+    const response = await ai!.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.3,
+        maxOutputTokens: maxTokens,
+      },
+    });
+    const text = response.text || "{}";
+    const clean = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    return JSON.parse(clean);
+  }
+
+  try {
+    step("Skill extraction");
+    const skills = await callGemini(
+      "You are an expert resume analyst. Extract all skills from the resume. Return ONLY valid JSON with this exact structure:",
+      `Extract all skills from this resume. Return:
+{
+  "categories": [{ "name": "Category Name", "skills": ["skill1", "skill2"] }],
+  "totalCount": 0,
+  "hardSkillPct": 0,
+  "quantifiedCount": 0,
+  "quantifiedExamples": ["example1"]
+}`
+    );
+
+    step("Keyword phrasing audit");
+    const keywords = await callGemini(
+      "You are an ATS keyword specialist. Analyse the resume and identify phrasing that should be rewritten to match standard ATS terminology. Return ONLY valid JSON:",
+      `Audit keyword phrasing. Return:
+{
+  "rewrites": [{ "before": "current phrasing", "after": "ATS-optimised phrasing", "reason": "short reason" }]
+}
+Return 5-8 rewrites.`
+    );
+
+    step("ANZSCO/SEEK taxonomy");
+    const anzsco = await callGemini(
+      "You are an Australian job market specialist. Map resume skills to standard ANZSCO/SEEK AU taxonomy terms. Return ONLY valid JSON:",
+      `Map skills to ANZSCO/SEEK taxonomy. Return:
+{
+  "mappings": [{ "resumeSkill": "skill from resume", "standardTerm": "SEEK/ANZSCO standard", "status": "strong match|partial match|missing", "priority": "high|medium|low" }]
+}
+Include 2-3 "missing" entries for important standard terms not in the resume. Return 8-10 mappings.`
+    );
+
+    step("Hard vs soft balance");
+    const hardSoft = await callGemini(
+      "You are an ATS specialist. Classify resume skills as hard or soft and provide ATS verdict. Return ONLY valid JSON:",
+      `Classify hard vs soft skills. Return:
+{
+  "skills": [{ "skill": "skill name", "type": "hard|soft", "verdict": "verdict text", "strength": "strong|moderate|weak" }]
+}
+Return 8-12 skills.`
+    );
+
+    step("Action verb + metric audit");
+    const verbs = await callGemini(
+      "You are a resume writing expert. Identify weak action verbs and missing metrics, suggest stronger alternatives. Return ONLY valid JSON:",
+      `Audit action verbs and metrics. Return:
+{
+  "improvements": [{ "weak": "current weak phrasing", "strong": "improved phrasing", "context": "what to add/why" }]
+}
+Return 5-7 improvements.`
+    );
+
+    step("Market gap analysis");
+    const gaps = await callGemini(
+      "You are an Australian recruitment specialist. Identify keyword and content gaps between this resume and what Australian employers expect. Return ONLY valid JSON:",
+      `Identify market gaps for AU job market. Return:
+{
+  "gaps": [{ "label": "gap title", "note": "explanation", "severity": "high|medium|low" }]
+}
+Return 5-7 gaps.`
+    );
+
+    step("Rewrite resume sections");
+    const rewrite = await callGemini(
+      "You are an expert resume writer specialising in ATS optimisation for the Australian job market. Using all the audit findings, produce fully rewritten resume sections. Return ONLY valid JSON:",
+      `Rewrite the resume sections applying all ATS improvements. Apply keyword improvements, fill taxonomy gaps, strengthen verbs, add missing AU market terms (WMS, supply chain, cold chain, WHS compliance, continuous improvement). Return:
+{
+  "summary": "full rewritten professional summary paragraph",
+  "skillsSection": "full rewritten Skills & Tools section as plain text with category headers and bullet points",
+  "certificationsSection": "full rewritten Licences & Certifications section as plain text",
+  "changeLog": ["change 1 and why", "change 2 and why", "change 3 and why"]
+}`,
+      2000
+    );
+
+    step("Done");
+    res.json({ skills, keywords, anzsco, hardSoft, verbs, gaps, rewrite });
+  } catch (err: any) {
+    console.error("[ATS] Error:", err);
+    res.status(500).json({ error: err.message || "ATS audit failed", step: err.step });
+  }
+});
+
 // --- VITE MIDDLEWARE SETUP ---
 
 async function start() {
