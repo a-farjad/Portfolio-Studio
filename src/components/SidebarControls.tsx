@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { ResumeData, WorkEntry, EducationEntry, CertificationEntry, AwardEntry, SkillItem, LanguageItem } from "../types";
 import { COLOR_PRESETS, FONT_PAIRINGS, detectChronologicalGaps } from "../utils";
 import {
@@ -42,6 +42,137 @@ export default function SidebarControls({
 
   // Gaps analysis state
   const [computedGaps, setComputedGaps] = useState<any[]>([]);
+
+  // Resume drag-drop / skill extraction state
+  const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parsedSkills, setParsedSkills] = useState<Array<{ name: string; level: number }>>([]);
+  const [parseError, setParseError] = useState("");
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set false if leaving the drop zone (not entering a child)
+    if (dropRef.current && !dropRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const raw = new TextDecoder("utf-8").decode(buffer);
+    const texts: string[] = [];
+    let i = 0;
+    while (i < raw.length) {
+      const tjMatch = raw.substring(i).match(/\(([^)]*)\)\s*Tj/);
+      if (tjMatch && tjMatch.index !== undefined) {
+        texts.push(tjMatch[1]);
+        i += tjMatch.index + tjMatch[0].length;
+      } else {
+        const tjArrMatch = raw.substring(i).match(/\[([^\]]*)\]\s*TJ/);
+        if (tjArrMatch && tjArrMatch.index !== undefined) {
+          const inner = tjArrMatch[1].match(/\(([^)]*)\)/g);
+          if (inner) texts.push(inner.map((t: string) => t.slice(1, -1)).join(""));
+          i += tjArrMatch.index + tjArrMatch[0].length;
+        } else {
+          if (raw[i] === "(" && raw[i + 1] !== ")") {
+            const end = raw.indexOf(")", i);
+            if (end !== -1 && end - i < 200) texts.push(raw.substring(i + 1, end));
+            i = end !== -1 ? end + 1 : i + 1;
+          } else {
+            i++;
+          }
+        }
+      }
+    }
+    return texts.join(" ").replace(/\s+/g, " ").trim();
+  };
+
+  const readFileContent = async (file: File): Promise<string> => {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".txt")) {
+      return await file.text();
+    }
+    if (name.endsWith(".pdf")) {
+      return await extractTextFromPDF(file);
+    }
+    throw new Error("Unsupported file. Please use .txt or .pdf.");
+  };
+
+  const extractSkillsFromText = async (text: string) => {
+    setParseError("");
+    setIsParsing(true);
+    try {
+      const res = await fetch("/api/ai/extract-skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeText: text })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || `Server error (${res.status})`);
+      }
+      const data = await res.json();
+      if (!Array.isArray(data.skills) || data.skills.length === 0) {
+        throw new Error("No skills could be extracted from this resume.");
+      }
+      setParsedSkills(data.skills);
+    } catch (err: any) {
+      setParseError(err.message || "Failed to extract skills.");
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    try {
+      const text = await readFileContent(file);
+      if (text.length < 20) {
+        setParseError("Could not read enough text from the file. Try a .txt file.");
+        return;
+      }
+      await extractSkillsFromText(text);
+    } catch (err: any) {
+      setParseError(err.message || "Failed to read file.");
+    }
+  }, []);
+
+  const handleAddParsedSkills = () => {
+    if (parsedSkills.length === 0) return;
+    updateData((prev) => {
+      for (const s of parsedSkills) {
+        prev.skills.push({
+          id: "s-" + Math.random().toString(36).substring(2, 6),
+          name: s.name,
+          level: s.level,
+          style: "chip" as const
+        });
+      }
+    });
+    setParsedSkills([]);
+  };
+
+  const handleClearParsed = () => {
+    setParsedSkills([]);
+    setParseError("");
+  };
 
   const toggleAccordion = (id: string) => {
     setOpenSectionId(openSectionId === id ? "" : id);
@@ -1314,6 +1445,75 @@ export default function SidebarControls({
                     </button>
                   </div>
                 ))}
+              </div>
+
+              {/* Resume drag-drop zone */}
+              <div
+                ref={dropRef}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer ${
+                  isDragging
+                    ? "border-sky-500 bg-sky-50 dark:bg-sky-950/30"
+                    : "border-slate-300 dark:border-slate-700 hover:border-sky-400 bg-slate-50/30 dark:bg-slate-900/20"
+                }`}
+              >
+                {isParsing ? (
+                  <div className="flex items-center justify-center gap-2 text-slate-500">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-[10px] font-semibold">Extracting skills...</span>
+                  </div>
+                ) : parsedSkills.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">
+                        {parsedSkills.length} skills extracted
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleClearParsed}
+                        className="text-[9px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 max-h-[80px] overflow-y-auto">
+                      {parsedSkills.map((s, i) => (
+                        <span key={i} className="text-[9px] bg-sky-100 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 px-1.5 py-0.5 rounded font-medium">
+                          {s.name}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddParsedSkills}
+                      className="w-full py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add All to Skills
+                    </button>
+                  </div>
+                ) : parseError ? (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-rose-600">{parseError}</p>
+                    <button
+                      type="button"
+                      onClick={handleClearParsed}
+                      className="text-[9px] text-slate-400 underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1">
+                    <Upload className={`w-5 h-5 ${isDragging ? "text-sky-500" : "text-slate-400"}`} />
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {isDragging ? "Drop resume file here" : "Drop a .txt or .pdf resume to extract skills"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <PremiumButton
