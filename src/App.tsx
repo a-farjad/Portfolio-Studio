@@ -337,7 +337,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
+    <div className={`h-screen overflow-hidden flex flex-col font-sans transition-colors duration-300 ${
       editorDarkMode ? "bg-zinc-950 text-zinc-100" : "bg-zinc-100 text-zinc-900"
     }`}>
       

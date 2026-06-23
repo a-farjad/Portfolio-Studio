@@ -132,48 +132,82 @@ export default function SidebarControls({
   const extractTextFromPDF = async (file: File): Promise<string> => {
     const buffer = await file.arrayBuffer();
     const raw = new TextDecoder("utf-8").decode(buffer);
-
-    // Collect text from common PDF text operators
     const texts: string[] = [];
 
-    // Pattern 1: (text) Tj  and  (text) '  and  (text) "
-    const textOpRe = /\(((?:[^\\)]|\\.)*)\)\s*(Tj|'|")/g;
+    // Find all parenthesized PDF strings (they appear in Tj, TJ, ', " operators)
+    const parenRe = /\(((?:[^\\)\\]|\\(?:[0-7]{3}|.))*)\)/g;
     let m: RegExpExecArray | null;
-    while ((m = textOpRe.exec(raw)) !== null) {
-      const seg = m[1].replace(/\\(.)/g, "$1");
-      if (isReadableText(seg)) texts.push(seg);
-    }
-
-    // Pattern 2: TJ arrays  [(text) kern (text) ...] TJ
-    const tjArrayRe = /\[((?:\([^)]*\)\s*(?:-?\d+\.?\d*)?\s*)*)\]\s*TJ/g;
-    while ((m = tjArrayRe.exec(raw)) !== null) {
-      const innerTexts = m[1].match(/\(([^)]*)\)/g);
-      if (innerTexts) {
-        const joined = innerTexts.map((t: string) => t.slice(1, -1).replace(/\\(.)/g, "$1")).join("");
-        if (isReadableText(joined)) texts.push(joined);
-      }
-    }
-
-    // Pattern 3: Any parenthesized string that looks like readable text
-    const anyParenRe = /\(([^)]{3,200})\)/g;
-    while ((m = anyParenRe.exec(raw)) !== null) {
-      const seg = m[1].replace(/\\(.)/g, "$1");
-      if (isReadableText(seg) && seg.length >= 3) texts.push(seg);
+    while ((m = parenRe.exec(raw)) !== null) {
+      const decoded = decodePDFString(m[1]);
+      if (decoded.length >= 2) texts.push(decoded);
     }
 
     const result = texts.join(" ").replace(/\s+/g, " ").trim();
     return result;
   };
 
-  const isReadableText = (s: string): boolean => {
-    if (s.length < 2) return false;
-    // Count ASCII printable / common letters vs non-text chars
-    let printable = 0;
-    for (let i = 0; i < s.length; i++) {
-      const code = s.charCodeAt(i);
-      if ((code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13) printable++;
+  const decodePDFString = (raw: string): string => {
+    // Resolve PDF escape sequences to raw bytes (octal \ddd + literal escapes)
+    const bytes: number[] = [];
+    let i = 0;
+    while (i < raw.length) {
+      if (raw[i] === "\\" && i + 1 < raw.length) {
+        if (raw[i + 1] >= "0" && raw[i + 1] <= "7") {
+          let octal = "";
+          for (let j = 0; j < 3 && i + 1 + j < raw.length && raw[i + 1 + j] >= "0" && raw[i + 1 + j] <= "7"; j++) {
+            octal += raw[i + 1 + j];
+          }
+          bytes.push(parseInt(octal, 8));
+          i += 1 + octal.length;
+        } else {
+          const map: Record<string, number> = { n: 0x0a, r: 0x0d, t: 0x09, f: 0x0c, "(": 0x28, ")": 0x29, "\\": 0x5c };
+          bytes.push(map[raw[i + 1]] ?? raw.charCodeAt(i + 1));
+          i += 2;
+        }
+      } else {
+        bytes.push(raw.charCodeAt(i));
+        i++;
+      }
     }
-    return printable / s.length > 0.85;
+
+    if (bytes.length < 2) return "";
+
+    // Detect UTF-16 by BOM or by ASCII-subset pattern (every other byte is 0x00)
+    if (bytes.length >= 4) {
+      // Count zero bytes at even and odd positions (excluding leading BOM)
+      let zeroEven = 0, zeroOdd = 0, total = 0;
+      for (let j = 0; j + 1 < bytes.length; j += 2) {
+        total++;
+        if (bytes[j] === 0) zeroEven++;
+        if (bytes[j + 1] === 0) zeroOdd++;
+      }
+      const utf16BE = zeroEven > total * 0.7;
+      const utf16LE = zeroOdd > total * 0.7;
+
+      if (utf16BE || utf16LE) {
+        let result = "";
+        // Skip BOM if present
+        let start = 0;
+        if (bytes.length >= 2 && ((bytes[0] === 0xfe && bytes[1] === 0xff) || (bytes[0] === 0xff && bytes[1] === 0xfe))) {
+          start = 2;
+        }
+        for (let j = start; j + 1 < bytes.length; j += 2) {
+          const code = utf16LE ? (bytes[j + 1] << 8) | bytes[j] : (bytes[j] << 8) | bytes[j + 1];
+          if (code >= 32 || code === 0x0a || code === 0x0d || code === 0x09) {
+            result += String.fromCodePoint(code);
+          }
+        }
+        if (result.trim().length >= 3) return result.trim();
+      }
+    }
+
+    // Fallback: decode bytes as Latin-1, filtering non-printable
+    return bytes
+      .map((b) => String.fromCharCode(b))
+      .join("")
+      .replace(/[^\x20-\x7E\x0A\x0D\x09]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   };
 
   const readFileContent = async (file: File): Promise<string> => {
