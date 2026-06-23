@@ -132,31 +132,48 @@ export default function SidebarControls({
   const extractTextFromPDF = async (file: File): Promise<string> => {
     const buffer = await file.arrayBuffer();
     const raw = new TextDecoder("utf-8").decode(buffer);
+
+    // Collect text from common PDF text operators
     const texts: string[] = [];
-    let i = 0;
-    while (i < raw.length) {
-      const tjMatch = raw.substring(i).match(/\(([^)]*)\)\s*Tj/);
-      if (tjMatch && tjMatch.index !== undefined) {
-        texts.push(tjMatch[1]);
-        i += tjMatch.index + tjMatch[0].length;
-      } else {
-        const tjArrMatch = raw.substring(i).match(/\[([^\]]*)\]\s*TJ/);
-        if (tjArrMatch && tjArrMatch.index !== undefined) {
-          const inner = tjArrMatch[1].match(/\(([^)]*)\)/g);
-          if (inner) texts.push(inner.map((t: string) => t.slice(1, -1)).join(""));
-          i += tjArrMatch.index + tjArrMatch[0].length;
-        } else {
-          if (raw[i] === "(" && raw[i + 1] !== ")") {
-            const end = raw.indexOf(")", i);
-            if (end !== -1 && end - i < 200) texts.push(raw.substring(i + 1, end));
-            i = end !== -1 ? end + 1 : i + 1;
-          } else {
-            i++;
-          }
-        }
+
+    // Pattern 1: (text) Tj  and  (text) '  and  (text) "
+    const textOpRe = /\(((?:[^\\)]|\\.)*)\)\s*(Tj|'|")/g;
+    let m: RegExpExecArray | null;
+    while ((m = textOpRe.exec(raw)) !== null) {
+      const seg = m[1].replace(/\\(.)/g, "$1");
+      if (isReadableText(seg)) texts.push(seg);
+    }
+
+    // Pattern 2: TJ arrays  [(text) kern (text) ...] TJ
+    const tjArrayRe = /\[((?:\([^)]*\)\s*(?:-?\d+\.?\d*)?\s*)*)\]\s*TJ/g;
+    while ((m = tjArrayRe.exec(raw)) !== null) {
+      const innerTexts = m[1].match(/\(([^)]*)\)/g);
+      if (innerTexts) {
+        const joined = innerTexts.map((t: string) => t.slice(1, -1).replace(/\\(.)/g, "$1")).join("");
+        if (isReadableText(joined)) texts.push(joined);
       }
     }
-    return texts.join(" ").replace(/\s+/g, " ").trim();
+
+    // Pattern 3: Any parenthesized string that looks like readable text
+    const anyParenRe = /\(([^)]{3,200})\)/g;
+    while ((m = anyParenRe.exec(raw)) !== null) {
+      const seg = m[1].replace(/\\(.)/g, "$1");
+      if (isReadableText(seg) && seg.length >= 3) texts.push(seg);
+    }
+
+    const result = texts.join(" ").replace(/\s+/g, " ").trim();
+    return result;
+  };
+
+  const isReadableText = (s: string): boolean => {
+    if (s.length < 2) return false;
+    // Count ASCII printable / common letters vs non-text chars
+    let printable = 0;
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i);
+      if ((code >= 32 && code <= 126) || code === 9 || code === 10 || code === 13) printable++;
+    }
+    return printable / s.length > 0.85;
   };
 
   const readFileContent = async (file: File): Promise<string> => {
@@ -171,8 +188,10 @@ export default function SidebarControls({
     setIsParsing(true);
     try {
       const clientSkills = extractSkillsClientSide(text);
-      if (clientSkills.length > 0) {
+      if (clientSkills.length >= 3 && text.length >= 100) {
         setParsedSkills(clientSkills);
+      } else if (clientSkills.length > 0 && clientSkills.length < 3) {
+        setParseError(`Only found ${clientSkills.length} skill(s) — that seems too few for a resume. Make sure the file contains full resume text.`);
       } else {
         setParseError("No recognizable skills found in the text.");
       }
@@ -191,8 +210,8 @@ export default function SidebarControls({
     if (!file) return;
     try {
       const text = await readFileContent(file);
-      if (text.length < 20) {
-        setParseError("Could not read enough text from the file. Try a .txt file.");
+      if (text.length < 100) {
+        setParseError("Could not read enough text from the file. The extracted content is too short to identify meaningful skills. Try a .txt file.");
         return;
       }
       await extractSkillsFromText(text);
@@ -203,8 +222,8 @@ export default function SidebarControls({
 
   const handlePasteExtract = async () => {
     const trimmed = pasteText.trim();
-    if (trimmed.length < 10) {
-      setParseError("Please paste at least 10 characters of resume text.");
+    if (trimmed.length < 100) {
+      setParseError("Please paste at least 100 characters of resume text.");
       return;
     }
     await extractSkillsFromText(trimmed);
