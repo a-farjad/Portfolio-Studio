@@ -15,6 +15,7 @@ import { KawaiiSlider } from "./KawaiiSlider";
 import { PremiumToggle } from "./PremiumToggle";
 
 interface SidebarControlsProps {
+  tab: "content" | "layout";
   data: ResumeData;
   onChange: (newData: ResumeData) => void;
   onUndo?: () => void;
@@ -25,6 +26,7 @@ interface SidebarControlsProps {
 }
 
 export default function SidebarControls({
+  tab,
   data,
   onChange,
   onUndo,
@@ -611,6 +613,8 @@ export default function SidebarControls({
 
       {/* PARAMETERS NAVIGATION ACCORDION */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 pb-20">
+        {tab === "layout" && (
+        <>
         {/* SECTION A: THEME STYLE & FONT PALETTES */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -901,7 +905,11 @@ export default function SidebarControls({
             </div>
           )}
         </div>
+        </>
+        )}
 
+        {tab === "content" && (
+        <>
         {/* SECTION B: CORE BASICS (CONTACT DETAILS) */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -1907,7 +1915,11 @@ export default function SidebarControls({
             </div>
           )}
         </div>
+        </>
+        )}
 
+        {tab === "layout" && (
+        <>
         {/* SECTION H: JSON SCHEMA IMPORT/EXPORT METADATA */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -1971,6 +1983,8 @@ export default function SidebarControls({
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

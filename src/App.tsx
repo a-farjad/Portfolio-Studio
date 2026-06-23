@@ -26,7 +26,7 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(38); // default to 38%
 
   // Sidebar Sub-tabs [Edit, AI, Verbs]
-  const [controlsTab, setControlsTab] = useState<"edit" | "ai" | "verbs">("edit");
+  const [controlsTab, setControlsTab] = useState<"content" | "layout" | "ai" | "verbs">("content");
 
   // Local storage auto save indication
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
@@ -443,7 +443,8 @@ export default function App() {
           {/* Sub-tab Navigation */}
           <div className="flex border-b text-xs border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
             {[
-              { id: "edit", name: "Layout & Style" },
+              { id: "content", name: "Content" },
+              { id: "layout", name: "Layout" },
               { id: "ai", name: "AI Optimizer" },
               { id: "verbs", name: "Active Verbs" }
             ].map((tab) => (
@@ -463,8 +464,9 @@ export default function App() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {controlsTab === "edit" && (
+            {(controlsTab === "content" || controlsTab === "layout") && (
               <SidebarControls
+                tab={controlsTab as "content" | "layout"}
                 data={resumeData}
                 onChange={handleUpdateResume}
                 onUndo={undoStack.length > 0 ? handleUndo : undefined}
