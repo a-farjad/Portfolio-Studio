@@ -609,7 +609,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-zinc-200 dark:bg-zinc-900/40 p-4 relative flex justify-center items-start">
+          <div className="flex-1 overflow-hidden bg-zinc-200 dark:bg-zinc-900/40 p-4 relative flex justify-center items-start">
             {/* Direct preview document sheet canvas */}
             <ResumePreview
               data={resumeData}
