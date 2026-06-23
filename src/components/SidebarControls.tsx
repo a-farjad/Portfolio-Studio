@@ -72,6 +72,63 @@ export default function SidebarControls({
     }
   }, []);
 
+  // Paste state
+  const [pasteText, setPasteText] = useState("");
+
+  const COMMON_SKILLS_LIST = [
+    "JavaScript", "TypeScript", "Python", "Java", "C#", "C++", "Go", "Rust", "Swift", "Kotlin",
+    "React", "Angular", "Vue", "Svelte", "Next.js", "Node.js", "Express", "Django", "Flask",
+    "Spring Boot", "ASP.NET", "GraphQL", "REST API", "RESTful", "WebSocket",
+    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "DynamoDB", "Cassandra",
+    "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "GCP", "CI/CD", "Jenkins", "GitHub Actions",
+    "Git", "Linux", "Bash", "Nginx", "Apache", "RabbitMQ", "Kafka",
+    "HTML", "CSS", "Sass", "SCSS", "Tailwind", "Bootstrap", "Material UI", "Chakra UI",
+    "Agile", "Scrum", "Kanban", "Jira", "Confluence",
+    "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "NLP", "Computer Vision",
+    "Data Analysis", "Data Science", "Tableau", "Power BI", "Excel",
+    "Project Management", "Leadership", "Communication", "Teamwork", "Problem Solving",
+    "UI/UX Design", "Figma", "Photoshop", "Illustrator", "Adobe XD", "Sketch",
+    "Blockchain", "Solidity", "Web3", "Smart Contracts",
+    "React Native", "Flutter", "Dart", "Android", "iOS", "Mobile Development",
+    "Redux", "Zustand", "Jest", "Cypress", "Playwright", "Testing", "Unit Testing", "TDD",
+    "Microservices", "Monorepo", "Serverless", "Lambda", "S3", "ECS", "CloudFormation",
+    "OAuth", "JWT", "Authentication", "Authorization", "Security",
+    "Agile", "SCRUM", "Kanban", "Waterfall", "SDLC", "Product Management",
+    "SEO", "Analytics", "A/B Testing", "Growth Hacking", "Marketing",
+    "Public Speaking", "Technical Writing", "Mentoring", "Team Leadership"
+  ];
+
+  const extractSkillsClientSide = (text: string): Array<{ name: string; level: number }> => {
+    const lower = text.toLowerCase();
+    const found = new Set<string>();
+    const results: Array<{ name: string; level: number }> = [];
+
+    for (const skill of COMMON_SKILLS_LIST) {
+      const escaped = skill.replace(/[.+*?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`\\b${escaped}`, "i");
+      if (regex.test(lower)) {
+        if (!found.has(skill.toLowerCase())) {
+          found.add(skill.toLowerCase());
+          // Estimate level: if "expert" or years context near it, assign higher
+          const nearby = text.substring(Math.max(0, lower.indexOf(skill.toLowerCase()) - 60), lower.indexOf(skill.toLowerCase()) + skill.length + 60).toLowerCase();
+          let level = 70;
+          if (/\b(expert|advanced|senior|lead|principal|architect|master)\b/.test(nearby)) level = 90;
+          else if (/\b(proficient|strong|skilled|experienced)\b/.test(nearby)) level = 80;
+          else if (/\b(familiar|intermediate|mid)\b/.test(nearby)) level = 60;
+          else if (/\b(beginner|junior|basic|learning|entry)\b/.test(nearby)) level = 40;
+          // Years of experience boost
+          const yearsMatch = nearby.match(/(\d+)\+?\s*years?/i);
+          if (yearsMatch) {
+            const yrs = parseInt(yearsMatch[1]);
+            level = Math.min(95, 55 + yrs * 5);
+          }
+          results.push({ name: skill, level: Math.min(99, Math.max(25, level)) });
+        }
+      }
+    }
+    return results;
+  };
+
   const extractTextFromPDF = async (file: File): Promise<string> => {
     const buffer = await file.arrayBuffer();
     const raw = new TextDecoder("utf-8").decode(buffer);
@@ -104,12 +161,8 @@ export default function SidebarControls({
 
   const readFileContent = async (file: File): Promise<string> => {
     const name = file.name.toLowerCase();
-    if (name.endsWith(".txt")) {
-      return await file.text();
-    }
-    if (name.endsWith(".pdf")) {
-      return await extractTextFromPDF(file);
-    }
+    if (name.endsWith(".txt")) return await file.text();
+    if (name.endsWith(".pdf")) return await extractTextFromPDF(file);
     throw new Error("Unsupported file. Please use .txt or .pdf.");
   };
 
@@ -117,20 +170,12 @@ export default function SidebarControls({
     setParseError("");
     setIsParsing(true);
     try {
-      const res = await fetch("/api/ai/extract-skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText: text })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error || `Server error (${res.status})`);
+      const clientSkills = extractSkillsClientSide(text);
+      if (clientSkills.length > 0) {
+        setParsedSkills(clientSkills);
+      } else {
+        setParseError("No recognizable skills found in the text.");
       }
-      const data = await res.json();
-      if (!Array.isArray(data.skills) || data.skills.length === 0) {
-        throw new Error("No skills could be extracted from this resume.");
-      }
-      setParsedSkills(data.skills);
     } catch (err: any) {
       setParseError(err.message || "Failed to extract skills.");
     } finally {
@@ -155,6 +200,15 @@ export default function SidebarControls({
       setParseError(err.message || "Failed to read file.");
     }
   }, []);
+
+  const handlePasteExtract = async () => {
+    const trimmed = pasteText.trim();
+    if (trimmed.length < 10) {
+      setParseError("Please paste at least 10 characters of resume text.");
+      return;
+    }
+    await extractSkillsFromText(trimmed);
+  };
 
   const handleAddParsedSkills = () => {
     if (parsedSkills.length === 0) return;
@@ -614,7 +668,7 @@ export default function SidebarControls({
       {/* PARAMETERS NAVIGATION ACCORDION */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 pb-20">
         {tab === "layout" && (
-        <>
+        <div className="contents">
         {/* SECTION A: THEME STYLE & FONT PALETTES */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -905,11 +959,11 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </>
+        </div>
         )}
 
         {tab === "content" && (
-        <>
+        <div className="contents">
         {/* SECTION B: CORE BASICS (CONTACT DETAILS) */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -1515,11 +1569,34 @@ export default function SidebarControls({
                     </button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <Upload className={`w-5 h-5 ${isDragging ? "text-sky-500" : "text-slate-400"}`} />
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      {isDragging ? "Drop resume file here" : "Drop a .txt or .pdf resume to extract skills"}
-                    </p>
+                  <div className="space-y-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload className={`w-5 h-5 ${isDragging ? "text-sky-500" : "text-slate-400"}`} />
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        {isDragging ? "Drop resume file here" : "Drop a .txt or .pdf resume to extract skills"}
+                      </p>
+                    </div>
+                    <div className="relative flex items-center gap-2">
+                      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                      <span className="text-[9px] text-slate-400 font-medium uppercase">or</span>
+                      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                    </div>
+                    <textarea
+                      value={pasteText}
+                      onChange={(e) => setPasteText(e.target.value)}
+                      placeholder="Paste resume text here..."
+                      rows={3}
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-sky-500/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePasteExtract}
+                      disabled={pasteText.trim().length < 10}
+                      className="w-full py-1.5 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                    >
+                      <Check className="w-3 h-3" />
+                      Extract Skills from Pasted Text
+                    </button>
                   </div>
                 )}
               </div>
@@ -1915,11 +1992,11 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </>
+        </div>
         )}
 
         {tab === "layout" && (
-        <>
+        <div className="contents">
         {/* SECTION H: JSON SCHEMA IMPORT/EXPORT METADATA */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -1983,7 +2060,7 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </>
+        </div>
         )}
       </div>
     </div>
