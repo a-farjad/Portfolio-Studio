@@ -521,7 +521,7 @@ export default function SidebarControls({
                       }`}
                     >
                       <div className="font-semibold text-xs">{t.name}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{t.desc}</div>
+                      <div className="text-[10px] text-slate-600 mt-0.5">{t.desc}</div>
                     </button>
                   ))}
                 </div>

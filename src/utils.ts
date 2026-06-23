@@ -65,7 +65,7 @@ export const COLOR_PRESETS = [
     name: "Royal Navy",
     colors: {
       primary: "#1e3a8a", // Navy 900
-      secondary: "#2563eb", // Blue 600
+      secondary: "#1d4ed8", // Blue 700
       accent: "#ec4899", // Pink 500
       text: "#1e293b",
       bg: "#eff6ff",
@@ -77,7 +77,7 @@ export const COLOR_PRESETS = [
     name: "Creative Crimson",
     colors: {
       primary: "#7f1d1d", // Crimson 900
-      secondary: "#dc2626", // Red 600
+      secondary: "#b91c1c", // Red 700
       accent: "#f59e0b", // Amber 500
       text: "#1c1917",
       bg: "#fff5f5",
@@ -89,7 +89,7 @@ export const COLOR_PRESETS = [
     name: "Amber Sunset",
     colors: {
       primary: "#1b1918", // Charcoal
-      secondary: "#d97706", // Amber 600
+      secondary: "#b45309", // Amber 700
       accent: "#4f46e5", // Indigo 600
       text: "#292524",
       bg: "#fef3c7",

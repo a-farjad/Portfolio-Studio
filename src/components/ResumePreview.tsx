@@ -402,7 +402,7 @@ export default function ResumePreview({
             <span
               contentEditable
               suppressContentEditableWarning
-              className="text-sm font-semibold tracking-wide block outline-none uppercase text-sky-700 dark:text-sky-400 p-0.5 rounded cursor-pointer"
+              className="text-sm font-semibold tracking-wide block outline-none uppercase p-0.5 rounded cursor-pointer"
               style={{ color: secondaryColor }}
               onBlur={(e) => handleBlur("basics", "", "title", e.target.textContent || "")}
             >
