@@ -350,17 +350,17 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-bold tracking-tight text-sm text-zinc-900 dark:text-white uppercase">
-                Portfolio Studio <span className="font-normal opacity-50">/ v2.4</span>
+                Portfolio Studio <span className="font-normal text-zinc-500 dark:text-zinc-400">/ v2.4</span>
               </h1>
             </div>
-            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-none mt-0.5">Artistic Flair Engine</p>
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest leading-none mt-0.5">Artistic Flair Engine</p>
           </div>
         </div>
 
         {/* Action parameters row */}
         <div className="flex items-center gap-2.5">
           {/* Saved Status Indicator */}
-          <span className="hidden sm:inline-flex text-[10px] uppercase font-bold text-green-600 dark:text-green-400 items-center gap-1.5 px-3 py-1 bg-green-500/5 dark:bg-green-500/10 rounded-full border border-green-500/10">
+          <span className="hidden sm:inline-flex text-[10px] uppercase font-bold text-green-800 dark:text-green-400 items-center gap-1.5 px-3 py-1 bg-green-500/5 dark:bg-green-500/10 rounded-full border border-green-500/10">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
             <span>Saved</span>
           </span>
@@ -454,7 +454,7 @@ export default function App() {
                 className={`flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
                   controlsTab === tab.id
                     ? "border-b-2 border-black dark:border-white text-black dark:text-white bg-white dark:bg-zinc-950"
-                    : "border-b-2 border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                    : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200"
                 }`}
               >
                 {tab.name}
@@ -480,7 +480,7 @@ export default function App() {
                   <h3 className="font-bold text-slate-900 w-max border-b-2 pb-1 text-xs uppercase dark:text-white mb-2">
                     AI Workspace Companion
                   </h3>
-                  <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
                     Improve bullet points with Google X-Y-Z formula parameters, or run ATS diagnostics against target roles.
                   </p>
                   <AIAssistant
@@ -510,14 +510,14 @@ export default function App() {
                 <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
                 Factory Reset All Data
               </button>
-              <p className="text-[9px] text-center text-red-500 font-bold uppercase leading-tight px-4">
+              <p className="text-[9px] text-center text-red-700 dark:text-red-400 font-bold uppercase leading-tight px-4">
                 Warning: Clicking this will immediately wipe all your progress and personal links from this browser.
               </p>
             </div>
             
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
               <div>
-                <span className="text-[10px] font-extrabold tracking-wide uppercase text-slate-400">Collaboratory syncing</span>
+                <span className="text-[10px] font-extrabold tracking-wide uppercase text-slate-500">Collaboratory syncing</span>
                 <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block mt-0.5">Publish Web Link</span>
               </div>
               <button
@@ -592,7 +592,7 @@ export default function App() {
 
             {/* Scale Percent Zoom */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Scaling:</span>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Scaling:</span>
               <select
                 aria-label="Canvas Zoom Scale"
                 value={canvasZoom}

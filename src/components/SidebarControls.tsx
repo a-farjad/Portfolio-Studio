@@ -516,12 +516,12 @@ export default function SidebarControls({
                       onClick={() => handleStyleChange("template", t.id)}
                       className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                         data.style.template === t.id
-                          ? "bg-sky-500/10 border-sky-500 text-sky-600 dark:text-sky-400"
+                          ? "bg-sky-500/10 border-sky-500 text-sky-700 dark:text-sky-400"
                           : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300"
                       }`}
                     >
                       <div className="font-semibold text-xs">{t.name}</div>
-                      <div className="text-[10px] opacity-70 mt-0.5">{t.desc}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{t.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -692,6 +692,7 @@ export default function SidebarControls({
                     value={data.style.padding}
                     onChange={(val) => handleStyleChange("padding", val)}
                     baseColor="#0ea5e9"
+                    ariaLabel="Base Padding Spacing"
                   />
                 </div>
 
@@ -725,6 +726,7 @@ export default function SidebarControls({
                     value={data.style.paragraphMargin}
                     onChange={(val) => handleStyleChange("paragraphMargin", val)}
                     baseColor="#0ea5e9"
+                    ariaLabel="Paragraph spacing factor"
                   />
                 </div>
 
@@ -1299,6 +1301,7 @@ export default function SidebarControls({
                         value={s.level}
                         onChange={(val) => handleUpdateSkillField(s.id, "level", val)}
                         baseColor={s.level < 40 ? "#fca5a5" : s.level < 70 ? "#fdba74" : "#86efac"}
+                        ariaLabel={`Skill level for ${s.name}`}
                       />
                     </div>
 
@@ -1366,7 +1369,7 @@ export default function SidebarControls({
                     <button
                       type="button"
                       onClick={handleAddCertification}
-                      className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                      className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
                     >
                       <Plus className="w-3 h-3" /> Add Cert
                     </button>
@@ -1406,7 +1409,7 @@ export default function SidebarControls({
                   <button
                     type="button"
                     onClick={handleAddAward}
-                    className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                    className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
                   >
                     <Plus className="w-3 h-3" /> Add Award
                   </button>
@@ -1456,7 +1459,7 @@ export default function SidebarControls({
                   <button
                     type="button"
                     onClick={handleAddLanguage}
-                    className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                    className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
                   >
                     <Plus className="w-3 h-3" /> Add Language
                   </button>

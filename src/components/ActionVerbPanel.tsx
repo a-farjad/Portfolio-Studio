@@ -28,7 +28,7 @@ export default function ActionVerbPanel({ onSelectActionVerb }: ActionVerbPanelP
     <div className="bg-slate-50/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-[18px] backdrop-blur-md">
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-sky-100 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-lg">
+          <div className="p-1.5 bg-sky-200 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400 rounded-lg">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>

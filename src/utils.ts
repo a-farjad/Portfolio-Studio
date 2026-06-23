@@ -41,7 +41,7 @@ export const COLOR_PRESETS = [
     name: "Cosmic Slate",
     colors: {
       primary: "#1e293b", // Slate 800
-      secondary: "#0284c7", // Sky 600
+      secondary: "#0369a1", // Sky 700
       accent: "#f59e0b", // Amber 500
       text: "#0f172a", // Slate 900
       bg: "#f1f5f9", // Slate 100
@@ -236,7 +236,7 @@ export const DEFAULT_RESUME_DATA: ResumeData = {
     headerStyle: "timeline-integrated",
     colors: {
       primary: "#1e293b",
-      secondary: "#0284c7",
+      secondary: "#0369a1",
       accent: "#f59e0b",
       text: "#0f172a",
       bg: "#f1f5f9",
