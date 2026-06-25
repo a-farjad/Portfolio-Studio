@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sparkles,
   Brain,
@@ -13,9 +13,12 @@ import {
   Target,
   BarChart2,
   Check,
+  ArrowRight,
+  Layers,
   FileText,
   AlertTriangle,
   Cpu,
+  RefreshCw,
   BookOpen
 } from "lucide-react";
 import { detectChronologicalGaps } from "../utils";
@@ -286,7 +289,7 @@ export default function AIAssistant({
       {activeSubTab === "ats-diagnose" ? (
         <div className="space-y-4">
           {/* PASTE JOB SPEC */}
-          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-[18px] space-y-3.5">
+          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4.5 space-y-3.5">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-emerald-500" />
               <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">
@@ -294,7 +297,7 @@ export default function AIAssistant({
               </span>
             </div>
 
-            <p className="text-[10px] text-slate-400 leading-normal">
+            <p className="text-[10px] text-slate-400 leading-relaxed leading-normal">
               Provide the job description you're applying for. The scanner will run semantic keyword analysis, compute a compatibility scorecard, and highlight key terms inside your resume preview document frame.
             </p>
 
@@ -448,7 +451,7 @@ export default function AIAssistant({
           </div>
 
           {/* CHRONOLOGICAL GAP AUDIT DETAILS */}
-          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-[18px] space-y-3">
+          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4.5 space-y-3">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
               <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">
@@ -508,7 +511,7 @@ export default function AIAssistant({
       ) : (
         <div className="space-y-4">
           {/* EDUCATIONAL BOOK: THE GOOGLE XYZ FORMULA */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-[18px] text-white shadow-xl relative overflow-hidden">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 text-white shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-xl pointer-events-none" />
             
             <div className="flex items-center gap-2 mb-3">
@@ -539,7 +542,7 @@ export default function AIAssistant({
           </div>
 
           {/* INTERACTIVE BUILDER FIELD ACCORDION */}
-          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-[18px] space-y-3">
+          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4.5 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider block">
                 Interactive Formula Workspace
@@ -699,7 +702,7 @@ export default function AIAssistant({
           </div>
 
           {/* LEGACY INDIVIDUAL BULLET ADJUSTMENT FORM */}
-          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-[18px] space-y-3.5 text-xs">
+          <div className="bg-white dark:bg-slate-950/30 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4.5 space-y-3.5 text-xs">
             <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider block">
               Quick Single-Bullet Enhancer
             </span>

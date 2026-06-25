@@ -3,23 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useCallback } from "react";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+import React, { useState } from "react";
 import { ResumeData, WorkEntry, EducationEntry, CertificationEntry, AwardEntry, SkillItem, LanguageItem } from "../types";
-import { COLOR_PRESETS, FONT_PAIRINGS, detectChronologicalGaps } from "../utils";
+import { COLOR_PRESETS, FONT_PAIRINGS, HEADING_FONTS, BODY_FONTS, MONO_FONTS, detectChronologicalGaps } from "../utils";
 import {
-  Settings, User, Briefcase, Award, GraduationCap, FileCheck, Layers,
-  Sparkles, Trash2, Plus, PlusCircle, ArrowUp, ArrowDown, Copy, Upload, RefreshCw, Check, Sliders, ChevronDown
+  Settings, User, Landmark, Briefcase, Award, GraduationCap, FileCheck, Layers, BookOpen, HeartHandshake,
+  Users, Sparkles, Trash2, Plus, PlusCircle, ArrowUp, ArrowDown, Copy, Download, Upload, RefreshCw, Eye, EyeOff, Check, Sliders, ChevronDown, Mail, Phone
 } from "lucide-react";
 import { PremiumButton } from "./PremiumButton";
 import { KawaiiSlider } from "./KawaiiSlider";
 import { PremiumToggle } from "./PremiumToggle";
 
-// Configure pdf.js worker
-GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@6.0.227/build/pdf.worker.min.mjs`;
-
 interface SidebarControlsProps {
-  tab: "content" | "layout";
   data: ResumeData;
   onChange: (newData: ResumeData) => void;
   onUndo?: () => void;
@@ -30,7 +25,6 @@ interface SidebarControlsProps {
 }
 
 export default function SidebarControls({
-  tab,
   data,
   onChange,
   onUndo,
@@ -48,198 +42,6 @@ export default function SidebarControls({
 
   // Gaps analysis state
   const [computedGaps, setComputedGaps] = useState<any[]>([]);
-
-  // Resume drag-drop / skill extraction state
-  const [isDragging, setIsDragging] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [parsedSkills, setParsedSkills] = useState<Array<{ name: string; level: number }>>([]);
-  const [parseError, setParseError] = useState("");
-  const dropRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set false if leaving the drop zone (not entering a child)
-    if (dropRef.current && !dropRef.current.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  }, []);
-
-  // Paste state
-  const [pasteText, setPasteText] = useState("");
-
-  const COMMON_SKILLS_LIST = [
-    "JavaScript", "TypeScript", "Python", "Java", "C#", "C++", "Go", "Rust", "Swift", "Kotlin",
-    "React", "Angular", "Vue", "Svelte", "Next.js", "Node.js", "Express", "Django", "Flask",
-    "Spring Boot", "ASP.NET", "GraphQL", "REST API", "RESTful", "WebSocket",
-    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "DynamoDB", "Cassandra",
-    "Docker", "Kubernetes", "Terraform", "AWS", "Azure", "GCP", "CI/CD", "Jenkins", "GitHub Actions",
-    "Git", "Linux", "Bash", "Nginx", "Apache", "RabbitMQ", "Kafka",
-    "HTML", "CSS", "Sass", "SCSS", "Tailwind", "Bootstrap", "Material UI", "Chakra UI",
-    "Agile", "Scrum", "Kanban", "Jira", "Confluence",
-    "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "NLP", "Computer Vision",
-    "Data Analysis", "Data Science", "Tableau", "Power BI", "Excel",
-    "Project Management", "Leadership", "Communication", "Teamwork", "Problem Solving",
-    "UI/UX Design", "Figma", "Photoshop", "Illustrator", "Adobe XD", "Sketch",
-    "Blockchain", "Solidity", "Web3", "Smart Contracts",
-    "React Native", "Flutter", "Dart", "Android", "iOS", "Mobile Development",
-    "Redux", "Zustand", "Jest", "Cypress", "Playwright", "Testing", "Unit Testing", "TDD",
-    "Microservices", "Monorepo", "Serverless", "Lambda", "S3", "ECS", "CloudFormation",
-    "OAuth", "JWT", "Authentication", "Authorization", "Security",
-    "Agile", "SCRUM", "Kanban", "Waterfall", "SDLC", "Product Management",
-    "SEO", "Analytics", "A/B Testing", "Growth Hacking", "Marketing",
-    "Public Speaking", "Technical Writing", "Mentoring", "Team Leadership"
-  ];
-
-  const extractSkillsClientSide = (text: string): Array<{ name: string; level: number }> => {
-    const lower = text.toLowerCase();
-    const found = new Set<string>();
-    const results: Array<{ name: string; level: number }> = [];
-
-    for (const skill of COMMON_SKILLS_LIST) {
-      const escaped = skill.replace(/[.+*?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`\\b${escaped}`, "i");
-      if (regex.test(lower)) {
-        if (!found.has(skill.toLowerCase())) {
-          found.add(skill.toLowerCase());
-          // Estimate level: if "expert" or years context near it, assign higher
-          const nearby = text.substring(Math.max(0, lower.indexOf(skill.toLowerCase()) - 60), lower.indexOf(skill.toLowerCase()) + skill.length + 60).toLowerCase();
-          let level = 70;
-          if (/\b(expert|advanced|senior|lead|principal|architect|master)\b/.test(nearby)) level = 90;
-          else if (/\b(proficient|strong|skilled|experienced)\b/.test(nearby)) level = 80;
-          else if (/\b(familiar|intermediate|mid)\b/.test(nearby)) level = 60;
-          else if (/\b(beginner|junior|basic|learning|entry)\b/.test(nearby)) level = 40;
-          // Years of experience boost
-          const yearsMatch = nearby.match(/(\d+)\+?\s*years?/i);
-          if (yearsMatch) {
-            const yrs = parseInt(yearsMatch[1]);
-            level = Math.min(95, 55 + yrs * 5);
-          }
-          results.push({ name: skill, level: Math.min(99, Math.max(25, level)) });
-        }
-      }
-    }
-    return results;
-  };
-
-  const extractTextFromPDF = async (file: File): Promise<string> => {
-    const buffer = await file.arrayBuffer();
-    const pdf = await getDocument({ data: buffer }).promise;
-    const texts: string[] = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items.map((item: any) => item.str).join(" ");
-      if (pageText.trim()) texts.push(pageText);
-    }
-    return texts.join("\n").replace(/\s+/g, " ").trim();
-  };
-
-  const readFileContent = async (file: File): Promise<string> => {
-    const name = file.name.toLowerCase();
-    if (name.endsWith(".txt")) return await file.text();
-    if (name.endsWith(".pdf")) return await extractTextFromPDF(file);
-    throw new Error("Unsupported file. Please use .txt or .pdf.");
-  };
-
-  const extractSkillsFromText = async (text: string) => {
-    setParseError("");
-    setIsParsing(true);
-    try {
-      const clientSkills = extractSkillsClientSide(text);
-      if (clientSkills.length >= 3 && text.length >= 100) {
-        setParsedSkills(clientSkills);
-      } else if (clientSkills.length > 0 && clientSkills.length < 3) {
-        setParseError(`Only found ${clientSkills.length} skill(s) — that seems too few for a resume. Make sure the file contains full resume text.`);
-      } else {
-        setParseError("No recognizable skills found in the text.");
-      }
-    } catch (err: any) {
-      setParseError(err.message || "Failed to extract skills.");
-    } finally {
-      setIsParsing(false);
-    }
-  };
-
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    try {
-      const text = await readFileContent(file);
-      if (text.length < 100) {
-        setParseError("Could not read enough text from the file. The extracted content is too short to identify meaningful skills. Try a .txt file.");
-        return;
-      }
-      await extractSkillsFromText(text);
-    } catch (err: any) {
-      setParseError(err.message || "Failed to read file.");
-    }
-  }, []);
-
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await readFileContent(file);
-      if (text.length < 100) {
-        setParseError("Could not read enough text from the file. The extracted content is too short to identify meaningful skills.");
-        return;
-      }
-      await extractSkillsFromText(text);
-    } catch (err: any) {
-      setParseError(err.message || "Failed to read file.");
-    }
-    // Reset input so the same file can be re-selected
-    e.target.value = "";
-  };
-
-  const handleDropZoneClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handlePasteExtract = async () => {
-    const trimmed = pasteText.trim();
-    if (trimmed.length < 100) {
-      setParseError("Please paste at least 100 characters of resume text.");
-      return;
-    }
-    await extractSkillsFromText(trimmed);
-  };
-
-  const handleAddParsedSkills = () => {
-    if (parsedSkills.length === 0) return;
-    updateData((prev) => {
-      for (const s of parsedSkills) {
-        prev.skills.push({
-          id: "s-" + Math.random().toString(36).substring(2, 6),
-          name: s.name,
-          level: s.level,
-          style: "chip" as const
-        });
-      }
-    });
-    setParsedSkills([]);
-  };
-
-  const handleClearParsed = () => {
-    setParsedSkills([]);
-    setParseError("");
-  };
 
   const toggleAccordion = (id: string) => {
     setOpenSectionId(openSectionId === id ? "" : id);
@@ -532,6 +334,7 @@ export default function SidebarControls({
       prev.sectionOrder = [...prev.sectionOrder, `custom_${newId}`];
       prev.sectionVisibility = { ...prev.sectionVisibility, [newId]: true };
       prev.sectionLabels = { ...prev.sectionLabels, [newId]: "New Section" };
+      return prev;
     });
   };
 
@@ -539,6 +342,7 @@ export default function SidebarControls({
     updateData((prev) => {
       prev.customSections = (prev.customSections || []).filter(s => s.id !== id);
       prev.sectionOrder = prev.sectionOrder.filter(k => k !== `custom_${id}`);
+      return prev;
     });
   };
 
@@ -678,8 +482,6 @@ export default function SidebarControls({
 
       {/* PARAMETERS NAVIGATION ACCORDION */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 pb-20">
-        {tab === "layout" && (
-        <div className="contents">
         {/* SECTION A: THEME STYLE & FONT PALETTES */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -695,7 +497,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "style" && (
-            <div className="p-[18px] space-y-[18px] border-t border-slate-100 text-xs text-slate-700 dark:text-slate-300">
+            <div className="p-4.5 space-y-4.5 border-t border-slate-100 text-xs text-slate-700 dark:text-slate-300">
               {/* 1. Layout choice */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -716,12 +518,12 @@ export default function SidebarControls({
                       onClick={() => handleStyleChange("template", t.id)}
                       className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                         data.style.template === t.id
-                          ? "bg-sky-500/10 border-sky-500 text-sky-700 dark:text-sky-400"
+                          ? "bg-sky-500/10 border-sky-500 text-sky-600 dark:text-sky-400"
                           : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300"
                       }`}
                     >
                       <div className="font-semibold text-xs">{t.name}</div>
-                      <div className="text-[10px] text-slate-600 mt-0.5">{t.desc}</div>
+                      <div className="text-[10px] opacity-70 mt-0.5">{t.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -851,7 +653,7 @@ export default function SidebarControls({
                     className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wider cursor-pointer transition ${
                       data.style.grayscaleMode
                         ? "bg-slate-800 text-emerald-400 border border-slate-700 dark:bg-zinc-800"
-                        : "bg-white text-slate-600 border border-slate-200 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-400"
+                        : "bg-white text-slate-600 border border-slate-200 dark:bg-zinc-950 dark:border-zinc-850 dark:text-zinc-400"
                     }`}
                   >
                     {data.style.grayscaleMode ? "ENABLED ON CANVAS" : "ENABLE PREVIEW"}
@@ -881,7 +683,7 @@ export default function SidebarControls({
                 </span>
                 
                 <div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-350 mb-1">
                     <label htmlFor="style-padding-slider" className="font-bold">Base Padding Spacing:</label>
                     <span className="font-mono">{data.style.padding}px</span>
                   </div>
@@ -892,12 +694,11 @@ export default function SidebarControls({
                     value={data.style.padding}
                     onChange={(val) => handleStyleChange("padding", val)}
                     baseColor="#0ea5e9"
-                    ariaLabel="Base Padding Spacing"
                   />
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-350 mb-1">
                     <label htmlFor="style-line-spacing-select" className="font-bold">Line spacing block:</label>
                     <span className="capitalize font-mono">{data.style.lineSpacing}</span>
                   </div>
@@ -915,7 +716,7 @@ export default function SidebarControls({
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-350 mb-1">
                     <label htmlFor="style-paragraph-margin-slider" className="font-bold">Paragraph spacing factor:</label>
                     <span className="font-mono">{data.style.paragraphMargin}x</span>
                   </div>
@@ -926,13 +727,12 @@ export default function SidebarControls({
                     value={data.style.paragraphMargin}
                     onChange={(val) => handleStyleChange("paragraphMargin", val)}
                     baseColor="#0ea5e9"
-                    ariaLabel="Paragraph spacing factor"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.5">
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.55">
                   <div className="space-y-1">
-                    <label htmlFor="style-header-format-select" className="text-[10px] text-slate-700 dark:text-slate-400 font-bold block">Section Header Style:</label>
+                    <label htmlFor="style-header-format-select" className="text-[10px] text-slate-700 dark:text-slate-350 font-bold block">Section Header Style:</label>
                     <select
                       id="style-header-format-select"
                       aria-label="Section Header Style"
@@ -949,7 +749,7 @@ export default function SidebarControls({
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor="style-bullet-preset-select" className="text-[10px] text-slate-700 dark:text-slate-400 font-bold block">Bullet Style symbol:</label>
+                    <label htmlFor="style-bullet-preset-select" className="text-[10px] text-slate-700 dark:text-slate-350 font-bold block">Bullet Style symbol:</label>
                     <select
                       id="style-bullet-preset-select"
                       aria-label="Bullet Style symbol"
@@ -970,11 +770,7 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </div>
-        )}
 
-        {tab === "content" && (
-        <div className="contents">
         {/* SECTION B: CORE BASICS (CONTACT DETAILS) */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -991,7 +787,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "basics" && (
-            <div className="p-[18px] space-y-3.5 border-t border-slate-100 text-xs">
+            <div className="p-4.5 space-y-3.5 border-t border-slate-100 text-xs">
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1">
                   <label className="text-[10px] text-slate-400 tracking-wide font-medium block uppercase">Full Name</label>
@@ -1128,7 +924,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "work" && (
-            <div className="p-[18px] space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
+            <div className="p-4.5 space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
               <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 leading-relaxed">
                 <div>
                   <span className="font-bold text-slate-800 dark:text-slate-200 block">Gap & Timeline Audit</span>
@@ -1137,7 +933,7 @@ export default function SidebarControls({
                 <button
                   type="button"
                   onClick={handleRunGapCheck}
-                  className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-950 text-[10px] font-bold cursor-pointer transition shadow-xs dark:text-zinc-200"
+                  className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-950 text-[10px] font-bold cursor-pointer transition shadow-xs dark:text-zinc-200"
                 >
                   Analyze Timeline
                 </button>
@@ -1220,7 +1016,7 @@ export default function SidebarControls({
                           type="button"
                           onClick={() => handleDeleteWork(w.id)}
                           aria-label="Delete work item"
-                          className="p-1 hover:bg-rose-100 dark:hover:bg-rose-950/35 size-6 rounded text-rose-500 cursor-pointer"
+                          className="p-1 hover:bg-rose-100 dark:hover:bg-rose-955/35 size-6 rounded text-rose-500 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1370,7 +1166,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "education" && (
-            <div className="p-[18px] space-y-3.5 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div className="p-4.5 space-y-3.5 border-t border-slate-100 dark:border-slate-800 text-xs">
               
               <div className="flex justify-between items-center mt-2 group">
                 <div className="flex gap-2 items-center text-[10px] text-slate-500">
@@ -1477,7 +1273,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "skills" && (
-            <div className="p-[18px] space-y-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div className="p-4.5 space-y-3 border-t border-slate-100 dark:border-slate-800 text-xs">
               <div className="space-y-2.5 max-h-[290px] overflow-y-auto pr-1">
                 {data.skills.map((s) => (
                   <div key={s.id} className="flex gap-2 items-center bg-slate-50 dark:bg-slate-900 p-2 border border-slate-200 dark:border-slate-800 rounded-xl">
@@ -1496,7 +1292,7 @@ export default function SidebarControls({
                       className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[10px] px-1 py-1 rounded dark:text-white [color-scheme:dark]"
                     >
                       <option value="chip">Chip Box</option>
-                      <option value="progress">Progress bar</option>
+                      <option value="progressBar">Progress bar</option>
                       <option value="badge">Pure Badge</option>
                     </select>
 
@@ -1505,7 +1301,6 @@ export default function SidebarControls({
                         value={s.level}
                         onChange={(val) => handleUpdateSkillField(s.id, "level", val)}
                         baseColor={s.level < 40 ? "#fca5a5" : s.level < 70 ? "#fdba74" : "#86efac"}
-                        ariaLabel={`Skill level for ${s.name}`}
                       />
                     </div>
 
@@ -1518,106 +1313,6 @@ export default function SidebarControls({
                     </button>
                   </div>
                 ))}
-              </div>
-
-              {/* Resume drag-drop zone */}
-              <div
-                ref={dropRef}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onClick={handleDropZoneClick}
-                onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer ${
-                  isDragging
-                    ? "border-sky-500 bg-sky-50 dark:bg-sky-950/30"
-                    : "border-slate-300 dark:border-slate-700 hover:border-sky-400 bg-slate-50/30 dark:bg-slate-900/20"
-                }`}
-              >
-                {isParsing ? (
-                  <div className="flex items-center justify-center gap-2 text-slate-500">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span className="text-[10px] font-semibold">Extracting skills...</span>
-                  </div>
-                ) : parsedSkills.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-wider">
-                        {parsedSkills.length} skills extracted
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleClearParsed}
-                        className="text-[9px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1 max-h-[80px] overflow-y-auto">
-                      {parsedSkills.map((s, i) => (
-                        <span key={i} className="text-[9px] bg-sky-100 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 px-1.5 py-0.5 rounded font-medium">
-                          {s.name}
-                        </span>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAddParsedSkills}
-                      className="w-full py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      Add All to Skills
-                    </button>
-                  </div>
-                ) : parseError ? (
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-rose-600">{parseError}</p>
-                    <button
-                      type="button"
-                      onClick={handleClearParsed}
-                      className="text-[9px] text-slate-400 underline cursor-pointer"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex flex-col items-center gap-1">
-                      <Upload className={`w-5 h-5 ${isDragging ? "text-sky-500" : "text-slate-400"}`} />
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        {isDragging ? "Drop resume file here" : "Click or drop a .txt or .pdf resume to extract skills"}
-                      </p>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".txt,.pdf"
-                      onChange={handleFileInputChange}
-                      className="hidden"
-                    />
-                    <div className="relative flex items-center gap-2">
-                      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-                      <span className="text-[9px] text-slate-400 font-medium uppercase">or</span>
-                      <span className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-                    </div>
-                    <textarea
-                      value={pasteText}
-                      onChange={(e) => setPasteText(e.target.value)}
-                      placeholder="Paste resume text here..."
-                      rows={3}
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-[10px] text-slate-700 dark:text-slate-300 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-sky-500/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePasteExtract}
-                      disabled={pasteText.trim().length < 100}
-                      className="w-full py-1.5 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                    >
-                      <Check className="w-3 h-3" />
-                      Extract Skills from Pasted Text
-                    </button>
-                  </div>
-                )}
               </div>
 
               <PremiumButton
@@ -1645,7 +1340,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "custom" && (
-            <div className="p-[18px] space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div className="p-4.5 space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs">
               {/* Accreditations & Certifications list */}
               <div className="space-y-2 pb-3.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between items-center mb-1">
@@ -1673,7 +1368,7 @@ export default function SidebarControls({
                     <button
                       type="button"
                       onClick={handleAddCertification}
-                      className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                      className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
                     >
                       <Plus className="w-3 h-3" /> Add Cert
                     </button>
@@ -1713,7 +1408,7 @@ export default function SidebarControls({
                   <button
                     type="button"
                     onClick={handleAddAward}
-                    className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                    className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
                   >
                     <Plus className="w-3 h-3" /> Add Award
                   </button>
@@ -1763,7 +1458,7 @@ export default function SidebarControls({
                   <button
                     type="button"
                     onClick={handleAddLanguage}
-                    className="text-[10px] text-sky-700 hover:text-sky-800 underline flex items-center gap-0.5 cursor-pointer font-semibold"
+                    className="text-[10px] text-sky-600 hover:underline flex items-center gap-0.5 cursor-pointer font-semibold"
                   >
                     <Plus className="w-3 h-3" /> Add Language
                   </button>
@@ -1813,7 +1508,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "custom-defined" && (
-            <div className="p-[18px] space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div className="p-4.5 space-y-4 border-t border-slate-100 dark:border-slate-800 text-xs">
               <p className="text-[10px] text-slate-400">Create the sections you need (Projects, Hobbies, Publications, etc) and choose where they live on the page.</p>
               
               {(data.customSections || []).map((sec) => (
@@ -1915,7 +1610,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "letter" && (
-            <div className="p-[18px] space-y-3.5 border-t border-slate-100 text-xs">
+            <div className="p-4.5 space-y-3.5 border-t border-slate-100 text-xs">
               <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border mb-2">
                 <div>
                   <span className="font-bold text-slate-800 block">Include Letter block</span>
@@ -2011,11 +1706,7 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </div>
-        )}
 
-        {tab === "layout" && (
-        <div className="contents">
         {/* SECTION H: JSON SCHEMA IMPORT/EXPORT METADATA */}
         <div className="border border-slate-200/80 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900/30">
           <button
@@ -2031,7 +1722,7 @@ export default function SidebarControls({
           </button>
 
           {openSectionId === "jsonexchange" && (
-            <div className="p-[18px] space-y-3 border-t border-slate-100 text-xs">
+            <div className="p-4.5 space-y-3 border-t border-slate-100 text-xs">
               <div className="flex flex-col gap-3">
                 <PremiumButton
                   onClick={onTriggerDownloadJSON}
@@ -2079,8 +1770,6 @@ export default function SidebarControls({
             </div>
           )}
         </div>
-        </div>
-        )}
       </div>
     </div>
   );

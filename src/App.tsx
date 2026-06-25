@@ -4,16 +4,15 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { ResumeData } from "./types";
+import { ResumeData, HistoryVersion } from "./types";
 import { DEFAULT_RESUME_DATA, importFromJSONResume, exportToJSONResume } from "./utils";
 import SidebarControls from "./components/SidebarControls";
 import ResumePreview from "./components/ResumePreview";
 import AIAssistant from "./components/AIAssistant";
-import AtsAuditor from "./components/AtsAuditor";
 import ActionVerbPanel from "./components/ActionVerbPanel";
 import {
-  Printer, Share2, RefreshCw,
-  Settings, Eye, Moon, Sun, ArrowLeftRight
+  FileText, Sparkles, Monitor, Smartphone, Printer, Share2, Clipboard, Download, RefreshCw, Layers, Sparkle,
+  History, Settings, Eye, CheckCircle2, RotateCw, Moon, Sun, Info, Menu, X, ArrowLeftRight
 } from "lucide-react";
 
 export default function App() {
@@ -27,7 +26,7 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState<number>(38); // default to 38%
 
   // Sidebar Sub-tabs [Edit, AI, Verbs]
-  const [controlsTab, setControlsTab] = useState<"content" | "layout" | "ai" | "ats" | "verbs">("content");
+  const [controlsTab, setControlsTab] = useState<"edit" | "ai" | "verbs">("edit");
 
   // Local storage auto save indication
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
@@ -338,7 +337,7 @@ export default function App() {
   };
 
   return (
-    <div className={`h-screen overflow-hidden flex flex-col font-sans transition-colors duration-300 ${
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
       editorDarkMode ? "bg-zinc-950 text-zinc-100" : "bg-zinc-100 text-zinc-900"
     }`}>
       
@@ -351,17 +350,17 @@ export default function App() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-bold tracking-tight text-sm text-zinc-900 dark:text-white uppercase">
-                Portfolio Studio <span className="font-normal text-zinc-500 dark:text-zinc-400">/ v2.4</span>
+                Portfolio Studio <span className="font-normal opacity-50">/ v2.4</span>
               </h1>
             </div>
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest leading-none mt-0.5">Artistic Flair Engine</p>
+            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest leading-none mt-0.5">Artistic Flair Engine</p>
           </div>
         </div>
 
         {/* Action parameters row */}
         <div className="flex items-center gap-2.5">
           {/* Saved Status Indicator */}
-          <span className="hidden sm:inline-flex text-[10px] uppercase font-bold text-green-800 dark:text-green-400 items-center gap-1.5 px-3 py-1 bg-green-500/5 dark:bg-green-500/10 rounded-full border border-green-500/10">
+          <span className="hidden sm:inline-flex text-[10px] uppercase font-bold text-green-600 dark:text-green-400 items-center gap-1.5 px-3 py-1 bg-green-500/5 dark:bg-green-500/10 rounded-full border border-green-500/10">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
             <span>Saved</span>
           </span>
@@ -444,10 +443,8 @@ export default function App() {
           {/* Sub-tab Navigation */}
           <div className="flex border-b text-xs border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60">
             {[
-              { id: "content", name: "Content" },
-              { id: "layout", name: "Layout" },
+              { id: "edit", name: "Layout & Style" },
               { id: "ai", name: "AI Optimizer" },
-              { id: "ats", name: "ATS Audit" },
               { id: "verbs", name: "Active Verbs" }
             ].map((tab) => (
               <button
@@ -457,7 +454,7 @@ export default function App() {
                 className={`flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
                   controlsTab === tab.id
                     ? "border-b-2 border-black dark:border-white text-black dark:text-white bg-white dark:bg-zinc-950"
-                    : "border-b-2 border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200"
+                    : "border-b-2 border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                 }`}
               >
                 {tab.name}
@@ -466,9 +463,8 @@ export default function App() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {(controlsTab === "content" || controlsTab === "layout") && (
+            {controlsTab === "edit" && (
               <SidebarControls
-                tab={controlsTab as "content" | "layout"}
                 data={resumeData}
                 onChange={handleUpdateResume}
                 onUndo={undoStack.length > 0 ? handleUndo : undefined}
@@ -480,11 +476,11 @@ export default function App() {
             )}
             {controlsTab === "ai" && (
               <div className="p-4 space-y-4">
-                <div className="p-[18px] bg-white dark:bg-slate-950 border rounded-2xl">
-                  <h3 className="font-bold text-slate-900 w-max border-b-2 pb-1 text-xs uppercase dark:text-white mb-2">
+                <div className="p-4.5 bg-white dark:bg-slate-950 border rounded-2xl">
+                  <h3 className="font-bold text-slate-9 w-max border-b-2 pb-1 text-xs uppercase text-slate-900 dark:text-white mb-2">
                     AI Workspace Companion
                   </h3>
-                  <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+                  <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
                     Improve bullet points with Google X-Y-Z formula parameters, or run ATS diagnostics against target roles.
                   </p>
                   <AIAssistant
@@ -497,11 +493,6 @@ export default function App() {
                 </div>
               </div>
             )}
-            {controlsTab === "ats" && (
-              <div className="p-4">
-                <AtsAuditor resumeText={getFlattenedResumeText()} />
-              </div>
-            )}
             {controlsTab === "verbs" && (
               <div className="p-4">
                 <ActionVerbPanel />
@@ -510,7 +501,7 @@ export default function App() {
           </div>
 
           {/* Cloud Sync/Share bar footer */}
-          <div className="p-[18px] bg-slate-50/80 dark:bg-slate-950 border-t border-slate-200/60 space-y-3.5 mt-auto">
+          <div className="p-4.5 bg-slate-50/80 dark:bg-slate-950 border-t border-slate-200/60 space-y-3.5 mt-auto">
             <div className="flex flex-col gap-2">
               <button 
                 onClick={handleResetToDefaults}
@@ -519,21 +510,21 @@ export default function App() {
                 <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
                 Factory Reset All Data
               </button>
-              <p className="text-[9px] text-center text-red-700 dark:text-red-400 font-bold uppercase leading-tight px-4">
+              <p className="text-[9px] text-center text-red-500 font-bold uppercase leading-tight px-4">
                 Warning: Clicking this will immediately wipe all your progress and personal links from this browser.
               </p>
             </div>
             
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
               <div>
-                <span className="text-[10px] font-extrabold tracking-wide uppercase text-slate-500">Collaboratory syncing</span>
+                <span className="text-[10px] font-extrabold tracking-wide uppercase text-slate-400">Collaboratory syncing</span>
                 <span className="font-bold text-xs text-slate-800 dark:text-slate-100 block mt-0.5">Publish Web Link</span>
               </div>
               <button
                 type="button"
                 onClick={handleSharePortfolio}
                 disabled={isSharing}
-                className="px-3.5 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-950 rounded-xl text-xs font-bold tracking-wide inline-flex items-center gap-1.5 cursor-pointer shadow hover:bg-slate-800"
+                className="px-3.5 py-1.5 bg-slate-900 text-white dark:bg-white dark:text-slate-950 rounded-xl text-xs font-bold tracking-brand inline-flex items-center gap-1.5 cursor-pointer shadow hover:bg-slate-800"
               >
                 <Share2 className="w-3.5 h-3.5" />
                 {isSharing ? "Synching..." : "Allocate Node"}
@@ -542,7 +533,7 @@ export default function App() {
 
             {shareLink && (
               <div className="p-2.5 bg-sky-50 dark:bg-slate-900 border border-sky-100 dark:border-slate-800 rounded-xl flex items-center justify-between gap-1 mt-2 text-[11px]">
-                <span className="text-sky-800 dark:text-sky-400 truncate font-mono select-all flex-1 pr-2">
+                <span className="text-sky-850 dark:text-sky-350 truncate font-mono select-all flex-1 pr-2">
                   {shareLink}
                 </span>
                 <button
@@ -601,7 +592,7 @@ export default function App() {
 
             {/* Scale Percent Zoom */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Scaling:</span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Scaling:</span>
               <select
                 aria-label="Canvas Zoom Scale"
                 value={canvasZoom}
@@ -616,7 +607,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden bg-zinc-200 dark:bg-zinc-900/40 p-4 relative flex justify-center items-start">
+          <div className="flex-1 overflow-y-auto bg-zinc-200 dark:bg-zinc-900/40 p-4 relative flex justify-center items-start">
             {/* Direct preview document sheet canvas */}
             <ResumePreview
               data={resumeData}

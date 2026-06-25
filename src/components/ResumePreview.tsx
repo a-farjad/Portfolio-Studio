@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ResumeData, WorkEntry, EducationEntry, CertificationEntry, AwardEntry, SkillItem } from "../types";
-import { Mail, Phone, MapPin, Globe, Linkedin, Github, Twitter, Layers, BadgeCheck, Sparkles, Check } from "lucide-react";
+import { Mail, Phone, MapPin, Globe, Linkedin, Github, Twitter, Layers, Plus, BadgeCheck, FileText, Sparkles, Check, ToggleLeft } from "lucide-react";
 import QRCode from "qrcode";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -115,7 +115,7 @@ export default function ResumePreview({
 
   // Spacing variables
   const sizeMap = {
-    compact: { font: "text-xs", h1: "text-xl", h2: "text-sm", pad: "p-[18px] md:p-6" },
+    compact: { font: "text-xs", h1: "text-xl", h2: "text-sm", pad: "p-4.5 md:p-6" },
     normal: { font: "text-[13px]", h1: "text-2xl", h2: "text-base", pad: "p-6 md:p-8" },
     large: { font: "text-sm", h1: "text-3xl", h2: "text-lg", pad: "p-7 md:p-10" }
   };
@@ -402,7 +402,7 @@ export default function ResumePreview({
             <span
               contentEditable
               suppressContentEditableWarning
-              className="text-sm font-semibold tracking-wide block outline-none uppercase p-0.5 rounded cursor-pointer"
+              className="text-sm font-semibold tracking-wide block outline-none uppercase text-sky-600 dark:text-sky-400 p-0.5 rounded cursor-pointer"
               style={{ color: secondaryColor }}
               onBlur={(e) => handleBlur("basics", "", "title", e.target.textContent || "")}
             >
@@ -490,7 +490,7 @@ export default function ResumePreview({
               <span
                 contentEditable
                 suppressContentEditableWarning
-                className="outline-none font-medium text-sky-700 dark:text-sky-400 hover:underline"
+                className="outline-none font-medium text-sky-600 dark:text-sky-400 hover:underline"
                 onBlur={(e) => handleBlur("basics", "", "website", e.target.textContent || "")}
               >
                 {b.website}
@@ -576,7 +576,7 @@ export default function ResumePreview({
                     <span
                       contentEditable
                       suppressContentEditableWarning
-                      className="font-bold text-sky-700 dark:text-sky-400 outline-none p-0.5 rounded cursor-pointer text-[11px] uppercase tracking-wider"
+                      className="font-bold text-sky-600 dark:text-sky-400 outline-none p-0.5 rounded cursor-pointer text-[11px] uppercase tracking-wider"
                       onBlur={(e) => handleBlur("work", w.id, "company", e.target.textContent || "")}
                     >
                       {w.company}
@@ -791,7 +791,7 @@ export default function ResumePreview({
               className={`px-3 py-2 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-medium flex flex-col gap-1 transition-all hover:border-sky-200 dark:hover:border-sky-900 ${digitalEntryClass}`}
             >
               <span className="font-bold text-slate-800 dark:text-white">{l.name}</span>
-              <span className="text-[10px] text-sky-700 dark:text-sky-400 font-bold uppercase tracking-wider">{l.fluency}</span>
+              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold uppercase tracking-wider">{l.fluency}</span>
             </div>
           ))}
         </div>
@@ -920,7 +920,7 @@ export default function ResumePreview({
                   <div className="flex justify-between items-start gap-2">
                     <div className="space-y-1">
                       <span className="font-extrabold text-slate-900 dark:text-white block tracking-tight">{highlightText(p.name, matchedKeywords)}</span>
-                      <div className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-widest">{highlightText(p.publisher, matchedKeywords)}</div>
+                      <div className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-widest">{highlightText(p.publisher, matchedKeywords)}</div>
                     </div>
                     <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 shrink-0">{p.releaseDate}</span>
                   </div>
@@ -964,7 +964,7 @@ export default function ResumePreview({
                   </div>
                   <div className="space-y-1">
                     <span className="font-extrabold text-slate-900 dark:text-white block tracking-tight">{highlightText(r.name, matchedKeywords)}</span>
-                    <span className="text-[10px] text-sky-700 dark:text-sky-400 block font-bold uppercase tracking-widest">{highlightText(r.relationship, matchedKeywords)} @ {highlightText(r.company, matchedKeywords)}</span>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 block font-bold uppercase tracking-widest">{highlightText(r.relationship, matchedKeywords)} @ {highlightText(r.company, matchedKeywords)}</span>
                     <div className="flex flex-col gap-0.5 mt-2">
                       {r.email && <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5"><Mail className="w-2.5 h-2.5 opacity-50" /> {r.email}</div>}
                       {r.phone && <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5"><Phone className="w-2.5 h-2.5 opacity-50" /> {r.phone}</div>}
@@ -1064,7 +1064,7 @@ export default function ResumePreview({
     if (style.template === "bento-grid") {
       return (
         <div className="space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4 p-[18px] bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 p-4.5 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/60 rounded-2xl">
             <div className="flex gap-4 items-center">
               {data.basics.showPhoto && data.basics.photoUrl && (
                 <div className="w-16 h-16 rounded-xl overflow-hidden shadow-sm shrink-0">
@@ -1090,7 +1090,7 @@ export default function ResumePreview({
           <div className="p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-36 h-36 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
             
-            <div className="flex gap-[18px] items-center">
+            <div className="flex gap-4.5 items-center">
               {data.basics.showPhoto && data.basics.photoUrl && (
                 <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-indigo-400 shrink-0 shadow-lg">
                   <img src={data.basics.photoUrl} alt={data.basics.name} className="w-full h-full object-cover" />

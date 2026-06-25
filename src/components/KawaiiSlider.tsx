@@ -8,10 +8,9 @@ interface KawaiiSliderProps {
   step?: number;
   baseColor?: string;
   className?: string;
-  ariaLabel?: string;
 }
 
-export const KawaiiSlider: React.FC<KawaiiSliderProps> = ({ value, onChange, min = 0, max = 100, step = 1, baseColor, className = "", ariaLabel }) => {
+export const KawaiiSlider: React.FC<KawaiiSliderProps> = ({ value, onChange, min = 0, max = 100, step = 1, baseColor, className = "" }) => {
   return (
     <div className={`rangeWrapper ${className}`}>
       <input
@@ -22,7 +21,6 @@ export const KawaiiSlider: React.FC<KawaiiSliderProps> = ({ value, onChange, min
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="kawaii"
-        aria-label={ariaLabel}
         style={{ "--base": baseColor } as React.CSSProperties}
       />
     </div>
